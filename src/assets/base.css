@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+    /*font-size: 62.5%;*/
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  font-weight: normal;
+}
+
+body{
+  font-family: "Outfit", sans-serif;
+}
+
