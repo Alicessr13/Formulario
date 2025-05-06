@@ -6,9 +6,11 @@ const nome = ref("");
 const email = ref("");
 const emailInvalido = ref(false);
 const telefone = ref("");
+const telefoneInvalido = ref(false);
 const data = ref("");
 const dataInvalida = ref(false);
 const cpf = ref("");
+const cpfInvalido = ref(false);
 
 const cep = ref("");
 const uf = ref("");
@@ -40,6 +42,18 @@ const imprimir = () => {
 		return;
 	}
 
+	if (telefoneInvalido.value) {
+		erro.value = true;
+		erroMensagem.value = ('Telefone inválido corrija para imprimir o PDF');
+		return;
+	}
+
+	if (cpfInvalido.value) {
+		erro.value = true;
+		erroMensagem.value = ('CPF inválido corrija para imprimir o PDF');
+		return;
+	}
+
 
 	erro.value = false;
 	erroMensagem.value = '';
@@ -51,9 +65,83 @@ const validarEmail = (email) => {
 	return emailInvalido.value = !regex.test(email);
 }
 
+const validarTelefone = (tel) => {
+	// Remove todos os caracteres não numéricos
+	const numeroLimpo = tel.replace(/\D/g, '');
+
+	// Verifica se tem o comprimento correto (11 dígitos para celular com DDD)
+	if (numeroLimpo.length !== 11) {
+		telefoneInvalido.value = true;
+		return true;
+	}
+
+	telefoneInvalido.value = false;
+	return false;
+}
+
+const validarCPF = (cpfValor) => {
+	// Remove todos os caracteres não numéricos
+	const cpfLimpo = cpfValor.replace(/\D/g, '');
+
+	// Verifica se tem o comprimento correto (11 dígitos)
+	if (cpfLimpo.length !== 11) {
+		cpfInvalido.value = true;
+		return true;
+	}
+
+	// Verifica se todos os dígitos são iguais (CPF inválido)
+	if (/^(\d)\1+$/.test(cpfLimpo)) {
+		cpfInvalido.value = true;
+		return true;
+	}
+
+	cpfInvalido.value = false;
+	return false;
+}
+
 const validarData = (data) => {
+	// Verifica se está no formato correto (YYYY-MM-DD)
+	if (!data) {
+		dataInvalida.value = true;
+		return true;
+	}
+
 	const regex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
-	return dataInvalida.value = !regex.test(data);
+	if (!regex.test(data)) {
+		dataInvalida.value = true;
+		return true;
+	}
+
+	// Converte a string para um objeto Date
+	const [ano, mes, dia] = data.split('-').map(Number);
+	const dataObj = new Date(ano, mes - 1, dia); // O mês no JavaScript é baseado em zero (0-11)
+
+	// Verifica se a data é válida (ex: 31 de fevereiro não existe)
+	if (dataObj.getFullYear() !== ano || dataObj.getMonth() !== mes - 1 || dataObj.getDate() !== dia) {
+		dataInvalida.value = true;
+		return true;
+	}
+
+	// Verifica se a data não é futura
+	const hoje = new Date();
+	if (dataObj > hoje) {
+		dataInvalida.value = true;
+		return true;
+	}
+
+	// Verifica se a pessoa tem pelo menos 18 anos
+	const idadeMinima = 18;
+	const dataLimite = new Date();
+	dataLimite.setFullYear(hoje.getFullYear() - idadeMinima);
+
+	if (dataObj > dataLimite) {
+		dataInvalida.value = true;
+		return true;
+	}
+
+	// Se chegou até aqui, a data é válida
+	dataInvalida.value = false;
+	return false;
 }
 
 watch([cep], async ([novoCep], []) => {
@@ -106,14 +194,16 @@ watch([cep], async ([novoCep], []) => {
 			<div class="flex flex-col md:flex-row md:gap-6">
 				<div class="flex flex-col gap-2 py-2">
 					<div class="w-38">Telefone</div>
-					<input v-model="telefone" type="text" v-maska="'(##) #####-####'"
+					<input v-model="telefone" @blur="validarTelefone(telefone)" type="text" v-maska="'(##) #####-####'"
 						class="border-2 border-gray-400 rounded-lg p-1 w-38" />
+					<span v-if="telefoneInvalido" class="text-red-500">Telefone inválido!</span>
 				</div>
 
 				<div class="flex flex-col gap-2 py-2">
 					<div class="w-10">CPF</div>
-					<input v-model="cpf" v-maska="'###.###.###-##'" type="text"
+					<input v-model="cpf" @blur="validarCPF(cpf)" v-maska="'###.###.###-##'" type="text"
 						class="border-2 border-gray-400 rounded-lg p-1 w-36" />
+					<span v-if="cpfInvalido" class="text-red-500">CPF inválido!</span>
 				</div>
 
 				<div class="flex flex-col gap-2 py-2 w-full">
