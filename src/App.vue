@@ -3,6 +3,7 @@ import { vMaska } from "maska/vue";
 import { ref, watch } from 'vue';
 
 const nome = ref("");
+const nomeInvalido = ref(false);
 const email = ref("");
 const emailInvalido = ref(false);
 const telefone = ref("");
@@ -18,6 +19,7 @@ const cidade = ref("");
 const rua = ref("");
 const bairro = ref("");
 const numero = ref("");
+const numeroInvalido = ref(false);
 
 const erroMensagem = ref("");
 const erro = ref(false);
@@ -33,6 +35,17 @@ const imprimir = () => {
 	if (emailInvalido.value) {
 		erro.value = true;
 		erroMensagem.value = ('E-mail inválido corrija para imprimir o PDF');
+		return;
+	}
+
+	if(nomeInvalido.value){
+		erro.value = true
+		erroMensagem.value = ('Número da casa inválido corrija para imprimir o pdf')
+	}
+
+	if (nomeInvalido.value) {
+		erro.value = true;
+		erroMensagem.value = ('Nome inválido corrija para imprimir o PDF');
 		return;
 	}
 
@@ -79,8 +92,8 @@ const validarTelefone = (tel) => {
 	return false;
 }
 
+
 const validarCPF = (cpfValor) => {
-	// Remove todos os caracteres não numéricos
 	const cpfLimpo = cpfValor.replace(/\D/g, '');
 
 	// Verifica se tem o comprimento correto (11 dígitos)
@@ -95,12 +108,39 @@ const validarCPF = (cpfValor) => {
 		return true;
 	}
 
+	// Algoritmo de validação do CPF
+	// Cálculo do primeiro dígito verificador
+	let soma = 0;
+	for (let i = 0; i < 9; i++) {
+		soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
+	}
+	let resto = soma % 11;
+	let dv1 = resto < 2 ? 0 : 11 - resto;
+
+	// Cálculo do segundo dígito verificador
+	soma = 0;
+	for (let i = 0; i < 10; i++) {
+		soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
+	}
+	resto = soma % 11;
+	let dv2 = resto < 2 ? 0 : 11 - resto;
+
+	// Verifica se os dígitos verificadores estão corretos
+	if (parseInt(cpfLimpo.charAt(9)) !== dv1 || parseInt(cpfLimpo.charAt(10)) !== dv2) {
+		cpfInvalido.value = true;
+		return true;
+	}
+
 	cpfInvalido.value = false;
 	return false;
 }
 
+const validarNome = (nome) => {
+	const regex = /^[A-Za-zÀ-ÿ\s]+$/;
+	return nomeInvalido.value = !regex.test(nome);
+}
+
 const validarData = (data) => {
-	// Verifica se está no formato correto (YYYY-MM-DD)
 	if (!data) {
 		dataInvalida.value = true;
 		return true;
@@ -112,37 +152,48 @@ const validarData = (data) => {
 		return true;
 	}
 
-	// Converte a string para um objeto Date
 	const [ano, mes, dia] = data.split('-').map(Number);
-	const dataObj = new Date(ano, mes - 1, dia); // O mês no JavaScript é baseado em zero (0-11)
+	const dataObj = new Date(ano, mes - 1, dia);
+	dataObj.setHours(0, 0, 0, 0); // Normaliza para meia-noite
 
-	// Verifica se a data é válida (ex: 31 de fevereiro não existe)
+	// Verifica se a data é válida
 	if (dataObj.getFullYear() !== ano || dataObj.getMonth() !== mes - 1 || dataObj.getDate() !== dia) {
 		dataInvalida.value = true;
 		return true;
 	}
 
-	// Verifica se a data não é futura
-	const hoje = new Date();
-	if (dataObj > hoje) {
+	// Obtém o ano atual
+	const anoAtual = new Date().getFullYear();
+
+	// Verifica se o ano está dentro do intervalo de 100 anos (mais simples e direto)
+	if (ano < anoAtual - 100 || ano > anoAtual + 100) {
 		dataInvalida.value = true;
 		return true;
 	}
 
-	// Verifica se a pessoa tem pelo menos 18 anos
-	const idadeMinima = 18;
-	const dataLimite = new Date();
-	dataLimite.setFullYear(hoje.getFullYear() - idadeMinima);
-
-	if (dataObj > dataLimite) {
-		dataInvalida.value = true;
-		return true;
-	}
-
-	// Se chegou até aqui, a data é válida
 	dataInvalida.value = false;
 	return false;
-}
+};
+
+const validarNumeros = (valor) => {
+  // Se não houver valor, consideramos inválido
+  if (!valor) {
+    numeroInvalido.value = false;
+    return true;
+  }
+  
+  // Regex para validar se contém apenas números
+  const regex = /^\d+$/;
+  
+  // Testa se o valor contém apenas números
+  const eValido = regex.test(valor);
+  
+  // Atualiza o estado de validade
+  numeroInvalido.value = !eValido;
+  
+  // Retorna true se válido (apenas números), false se inválido
+  return eValido;
+};
 
 watch([cep], async ([novoCep], []) => {
 	if (novoCep.length !== 9) {
@@ -182,7 +233,9 @@ watch([cep], async ([novoCep], []) => {
 			<div class="flex flex-col justify-between md:flex-row md:gap-6">
 				<div class="flex flex-col gap-2 pb-2 w-full">
 					<div class="w-full md:w-38">Nome completo</div>
-					<input v-model="nome" type="text" class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+					<input v-model="nome" @blur="validarNome(nome)" type="text"
+						class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+					<span v-if="nomeInvalido" class="text-red-600">Nome inválido!</span>
 				</div>
 				<div class="flex flex-col gap-2 py-2 md:pt-0">
 					<div class="w-38">Data de nascimento</div>
@@ -237,7 +290,8 @@ watch([cep], async ([novoCep], []) => {
 
 					<div class="flex flex-col gap-2 py-2 max-w-40">
 						<div class="w-10">Número</div>
-						<input v-model="numero" type="number" class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+						<input v-model="numero" @blur="validarNumeros(numero)" type="text" class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+						<span v-if="numeroInvalido" class="text-red-600">Número inválido</span>
 					</div>
 				</div>
 
