@@ -14,7 +14,9 @@ const cpf = ref("");
 const cpfInvalido = ref(false);
 
 const cep = ref("");
+const cepInvalido = ref(false);
 const uf = ref("");
+const ufInvalido = ref(false);
 const cidade = ref("");
 const rua = ref("");
 const bairro = ref("");
@@ -38,7 +40,7 @@ const imprimir = () => {
 		return;
 	}
 
-	if(nomeInvalido.value){
+	if (nomeInvalido.value) {
 		erro.value = true
 		erroMensagem.value = ('Número da casa inválido corrija para imprimir o pdf')
 	}
@@ -67,6 +69,24 @@ const imprimir = () => {
 		return;
 	}
 
+	if (cpfInvalido.value) {
+		erro.value = true;
+		erroMensagem.value = ('CPF inválido corrija para imprimir o PDF');
+		return;
+	}
+
+	if (cepInvalido.value) {
+		erro.value = true;
+		erroMensagem.value = ('CEP inválido. Digite exatamente 8 números.');
+		return;
+	}
+
+	if (ufInvalido.value) {
+		erro.value = true;
+		erroMensagem.value = ('UF inválida. Insira uma sigla com 2 letras.');
+		return;
+	}
+
 
 	erro.value = false;
 	erroMensagem.value = '';
@@ -92,6 +112,17 @@ const validarTelefone = (tel) => {
 	return false;
 }
 
+const validarCEP = (valor: string) => {
+	const cepLimpo = valor.replace(/\D/g, '')
+	cepInvalido.value = cepLimpo.length !== 8
+	return cepInvalido.value
+}
+
+const validarUF = (valor: string) => {
+	const regex = /^[A-Za-z]{2}$/
+	ufInvalido.value = !regex.test(valor.trim().toUpperCase())
+	return ufInvalido.value
+}
 
 const validarCPF = (cpfValor) => {
 	const cpfLimpo = cpfValor.replace(/\D/g, '');
@@ -115,7 +146,7 @@ const validarCPF = (cpfValor) => {
 		soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
 	}
 	let resto = soma % 11;
-	let dv1 = resto < 2 ? 0 : 11 - resto;
+	const dv1 = resto < 2 ? 0 : 11 - resto;
 
 	// Cálculo do segundo dígito verificador
 	soma = 0;
@@ -123,7 +154,7 @@ const validarCPF = (cpfValor) => {
 		soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
 	}
 	resto = soma % 11;
-	let dv2 = resto < 2 ? 0 : 11 - resto;
+	const dv2 = resto < 2 ? 0 : 11 - resto;
 
 	// Verifica se os dígitos verificadores estão corretos
 	if (parseInt(cpfLimpo.charAt(9)) !== dv1 || parseInt(cpfLimpo.charAt(10)) !== dv2) {
@@ -176,24 +207,42 @@ const validarData = (data) => {
 };
 
 const validarNumeros = (valor) => {
-  // Se não houver valor, consideramos inválido
-  if (!valor) {
-    numeroInvalido.value = false;
-    return true;
-  }
-  
-  // Regex para validar se contém apenas números
-  const regex = /^\d+$/;
-  
-  // Testa se o valor contém apenas números
-  const eValido = regex.test(valor);
-  
-  // Atualiza o estado de validade
-  numeroInvalido.value = !eValido;
-  
-  // Retorna true se válido (apenas números), false se inválido
-  return eValido;
+	// Se não houver valor, consideramos inválido
+	if (!valor) {
+		numeroInvalido.value = false;
+		return true;
+	}
+
+	// Regex para validar se contém apenas números
+	const regex = /^\d+$/;
+
+	// Testa se o valor contém apenas números
+	const eValido = regex.test(valor);
+
+	// Atualiza o estado de validade
+	numeroInvalido.value = !eValido;
+
+	// Retorna true se válido (apenas números), false se inválido
+	return eValido;
 };
+
+
+const bloquearNumeros = (event: KeyboardEvent) => {
+	const tecla = event.key
+	const ehNumero = /\d/.test(tecla)
+	if (ehNumero) {
+		event.preventDefault()
+	}
+};
+
+const bloquearColarNumeros = (event: ClipboardEvent) => {
+	const texto = event.clipboardData?.getData('text') || ''
+	const contemNumero = /\d/.test(texto)
+	if (contemNumero) {
+		event.preventDefault()
+	}
+};
+
 
 watch([cep], async ([novoCep], []) => {
 	if (novoCep.length !== 9) {
@@ -212,7 +261,7 @@ watch([cep], async ([novoCep], []) => {
 		}
 
 		// Preenche campos
-		uf.value = data.uf;
+		uf.value = (data.uf || '').replace(/\d/g, '');
 		cidade.value = data.localidade;
 		rua.value = data.logradouro;
 		bairro.value = data.bairro;
@@ -274,13 +323,17 @@ watch([cep], async ([novoCep], []) => {
 
 					<div class="flex flex-col gap-2 py-2 w-full max-w-28">
 						<div class="w-10">CEP</div>
-						<input type="text" v-maska="'#####-###'" v-model="cep"
+						<input type="text" v-maska="'#####-###'" v-model="cep" @blur="validarCEP(cep)"
 							class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+						<span v-if="cepInvalido" class="text-red-600">CEP inválido! (8 dígitos necessários)</span>
 					</div>
 
 					<div class="flex flex-col gap-2 py-2 max-w-16">
 						<div class="w-10">UF</div>
-						<input type="text" v-model="uf" class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+						<input type="text" v-model="uf" @blur="validarUF(uf)"
+							class="border-2 border-gray-400 rounded-lg p-1 w-full" maxlength="2"
+							@keypress="bloquearNumeros" @paste="bloquearColarNumeros" />
+						<span v-if="ufInvalido" class="text-red-600">UF inválida! (ex: SP, RJ)</span>
 					</div>
 
 					<div class="flex flex-col gap-2 py-2 w-full">
@@ -290,8 +343,9 @@ watch([cep], async ([novoCep], []) => {
 
 					<div class="flex flex-col gap-2 py-2 max-w-40">
 						<div class="w-10">Número</div>
-						<input v-model="numero" @blur="validarNumeros(numero)" type="text" class="border-2 border-gray-400 rounded-lg p-1 w-full" />
-						<span v-if="numeroInvalido" class="text-red-600">Número inválido</span>
+						<input v-model="numero" @blur="validarNumeros(numero)" type="text"
+							class="border-2 border-gray-400 rounded-lg p-1 w-full" />
+						<span v-if="numeroInvalido" class="text-red-600">Número inválido!</span>
 					</div>
 				</div>
 
