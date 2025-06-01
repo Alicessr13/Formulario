@@ -42,7 +42,7 @@ const imprimir = () => {
 
 	if (nomeInvalido.value) {
 		erro.value = true
-		erroMensagem.value = ('Número da casa inválido corrija para imprimir o pdf')
+		erroMensagem.value = ('Número da casa inválido corrija para imprimir o PDF')
 	}
 
 	if (nomeInvalido.value) {
